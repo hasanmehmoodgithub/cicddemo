@@ -52,7 +52,12 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+            # Remove accidental line breaks before decoding.
+            CLEAN_KEYSTORE_BASE64="$(printf "%s" "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n')"
+            if ! printf "%s" "$CLEAN_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks; then
+              echo "Invalid ANDROID_KEYSTORE_BASE64 secret. Recreate it from the .jks file."
+              exit 1
+            fi
             printf "%s\n" \
               "storePassword=$ANDROID_STORE_PASSWORD" \
               "keyPassword=$ANDROID_KEY_PASSWORD" \
