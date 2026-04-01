@@ -52,29 +52,11 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            # Decode robustly (handles wrapped input and missing padding).
-            export CLEAN_KEYSTORE_BASE64
             CLEAN_KEYSTORE_BASE64="$(printf "%s" "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n\t ')"
-            python3 - <<'PY'
-import base64
-import os
-import sys
-
-data = os.environ.get("CLEAN_KEYSTORE_BASE64", "")
-if not data:
-    print("ANDROID_KEYSTORE_BASE64 is empty.")
-    sys.exit(1)
-
-data += "=" * ((4 - len(data) % 4) % 4)
-try:
-    decoded = base64.b64decode(data, validate=False)
-except Exception:
-    print("Invalid ANDROID_KEYSTORE_BASE64 secret. Recreate it from the .jks file.")
-    sys.exit(1)
-
-with open("android/upload-keystore.jks", "wb") as f:
-    f.write(decoded)
-PY
+            if ! printf "%s" "$CLEAN_KEYSTORE_BASE64" | base64 --decode --ignore-garbage > android/upload-keystore.jks; then
+              echo "Invalid ANDROID_KEYSTORE_BASE64 secret. Recreate it from the .jks file."
+              exit 1
+            fi
             printf "%s\n" \
               "storePassword=$ANDROID_STORE_PASSWORD" \
               "keyPassword=$ANDROID_KEY_PASSWORD" \
